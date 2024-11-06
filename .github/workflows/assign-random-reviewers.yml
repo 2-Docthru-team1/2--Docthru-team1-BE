@@ -59,6 +59,9 @@ jobs:
           payload="{\"reviewers\": [\"${selected_reviewers[0]}\", \"${selected_reviewers[1]}\"]}"
           echo "Generated Payload: $payload"  # 디버그 출력
 
+          # JSON 페이로드를 파일로 저장
+          echo "$payload" > payload.json
+
           # API 호출 디버그 정보 출력
           echo "Calling API: ${API_URL}"
           echo "Payload:"
