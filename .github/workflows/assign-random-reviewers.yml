@@ -31,7 +31,7 @@ jobs:
       - name: Assign reviewers to PR
         run: |
           echo "Assigning reviewers: ${"{ steps.assign_reviewers.outputs.reviewers }"}"
-          curl -X POST \
+          curl -v -X POST
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
           -d "{\"reviewers\":[${{ steps.assign_reviewers.outputs.reviewers }}]}" \
