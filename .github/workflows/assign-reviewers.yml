@@ -26,7 +26,7 @@ jobs:
 
           # GitHub API를 사용하여 리뷰어 지정
           reviewers_string=$(IFS=,; echo "${selected_reviewers[*]}")
-          echo "reviewers=${reviewers_string}" >> $GITHUB_ENV  # 환경 변수로 설정
+          echo "::set-output name=reviewers::$reviewers_string"
 
       - name: Assign reviewers to PR
         run: |
