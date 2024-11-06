@@ -25,8 +25,8 @@ jobs:
           echo "Selected reviewers: "${selected_reviewers[@]}""
 
           # GitHub API를 사용하여 리뷰어 지정
-          reviewers_string=$(IFS=,; echo "${selected_reviewers[*]}")
-          echo "::set-output name=reviewers::$reviewers_string"
+          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
+          echo "reviewers=[$json_array]" >> $GITHUB_OUTPUT
 
       - name: Assign reviewers to PR
         run: |
