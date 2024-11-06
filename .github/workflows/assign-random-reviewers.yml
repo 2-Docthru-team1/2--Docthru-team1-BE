@@ -4,19 +4,72 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
 
+permissions:
+  pull-requests: write
+
 jobs:
   assign_reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Select random reviewers
+        id: get-reviewers
+        run: |
+          # 고정된 리뷰어 목록 설정
+          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
+
+          # PR 작성자 제외
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          FILTERED_REVIEWERS=()
+
+          for reviewer in "${REVIEWERS[@]}"; do
+            if [ "$reviewer" != "$PR_AUTHOR" ]; then
+              FILTERED_REVIEWERS+=("$reviewer")
+            fi
+          done
+
+          # 랜덤하게 2명 선택
+          if [ ${#FILTERED_REVIEWERS[@]} -ge 2 ]; then
+            selected_reviewers=($(shuf -n 2 -e "${FILTERED_REVIEWERS[@]}"))
+            
+            # JSON 형식으로 리뷰어 배열 생성
+            payload="{\"reviewers\": [\"${selected_reviewers[0]}\", \"${selected_reviewers[1]}\"]}"
+            echo "payload=$payload" >> $GITHUB_ENV
+            
+            echo "Selected reviewers: ${selected_reviewers[*]}"
+          else
+            echo "Not enough eligible reviewers available"
+            exit 1
+          fi
 
       - name: Assign reviewers to PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
+          # API 호출 URL 설정
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/requested_reviewers"
+
+          # 고정된 리뷰어 목록 설정
+          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94" "hyobiin9")
+
+          # 랜덤하게 2명 선택
           selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
-          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
-          curl -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          -d "{\"reviewers\": [$json_array]}"
+
+          # JSON 형식으로 리뷰어 배열 생성
+          payload="{\"reviewers\": [\"${selected_reviewers[0]}\", \"${selected_reviewers[1]}\"]}"
+          echo "Generated Payload: $payload"  # 디버그 출력
+
+          # JSON 페이로드를 파일로 저장
+          echo "$payload" > payload.json
+
+          # API 호출 디버그 정보 출력
+          echo "Calling API: ${API_URL}"
+          echo "Payload:"
+          cat payload.json
+
+          # API 호출
+          curl -v -X POST "${API_URL}" \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Content-Type: application/json" \
+            --data @payload.json
