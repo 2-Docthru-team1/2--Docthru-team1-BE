@@ -28,11 +28,11 @@ jobs:
           if [ ${#FILTERED_REVIEWERS[@]} -ge 2 ]; then
             selected_reviewers=($(shuf -n 2 -e "${FILTERED_REVIEWERS[@]}"))
             
-            # JSON 형식으로 리뷰어 배열 생성
-            reviewers_json="[\"${selected_reviewers[0]}\",\"${selected_reviewers[1]}\"]"
+            # 큰따옴표로 감싼 JSON 문자열 생성
+            payload="{\"reviewers\": [\"${selected_reviewers[0]}\", \"${selected_reviewers[1]}\"]}"
+            echo "payload=$payload" >> $GITHUB_ENV
             
             echo "Selected reviewers: ${selected_reviewers[*]}"
-            echo "reviewers_json=$reviewers_json" >> $GITHUB_ENV
           else
             echo "Not enough eligible reviewers available"
             exit 1
@@ -40,9 +40,10 @@ jobs:
 
       - name: Assign reviewers to PR
         run: |
+          echo "${{ env.payload }}" > payload.json
           curl -X POST \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Content-Type: application/json" \
-            -d "{\"reviewers\": ${{ env.reviewers_json }}}"
+            --data @payload.json
