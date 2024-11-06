@@ -3,21 +3,40 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   assign_reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Get organization members
+      - name: Get team members
         id: get-members
         run: |
-          # Get organization name from repository
-          ORG_NAME=$(echo "${{ github.repository }}" | cut -d "/" -f 1)
+          # Get organization and team name from repository
+          ORG_NAME="2-Docthru-team1"
           
-          # Get all organization members
+          # First, get all teams in the organization
+          teams=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/orgs/${ORG_NAME}/teams")
+          
+          echo "Available teams: $teams"
+          
+          # Get the first team's slug (assuming there's at least one team)
+          team_slug=$(echo "$teams" | jq -r '.[0].slug')
+          
+          echo "Team slug: $team_slug"
+          
+          # Get team members
           members=$(curl -s \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/orgs/${ORG_NAME}/members" | jq -r '.[].login')
+            "https://api.github.com/orgs/${ORG_NAME}/teams/${team_slug}/members" | jq -r '.[].login')
+          
+          echo "All members: $members"
           
           # Convert members to array and remove PR author
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
@@ -28,9 +47,12 @@ jobs:
             fi
           done
           
+          echo "Filtered members: ${filtered_members[*]}"
+          
           # Randomly select 2 reviewers
           if [ ${#filtered_members[@]} -lt 2 ]; then
-            echo "Not enough members to assign reviewers"
+            echo "Not enough members to assign reviewers (excluding PR author)"
+            echo "Number of available reviewers: ${#filtered_members[@]}"
             exit 1
           fi
           
@@ -42,6 +64,7 @@ jobs:
           echo "json_array=$json_array" >> $GITHUB_OUTPUT
 
       - name: Assign reviewers to PR
+        if: success()
         run: |
           curl -X POST \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
