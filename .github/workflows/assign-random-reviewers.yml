@@ -22,7 +22,7 @@ jobs:
           selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
 
           # 선택된 리뷰어 출력
-          echo "Selected reviewers: ${selected_reviewers[@]}"
+          echo "Selected reviewers: "${selected_reviewers[@]}""
 
           # GitHub API를 사용하여 리뷰어 지정
           reviewers_string=$(IFS=,; echo "${selected_reviewers[*]}")
