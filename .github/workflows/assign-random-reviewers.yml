@@ -27,10 +27,12 @@ jobs:
           # 랜덤하게 2명 선택
           if [ ${#FILTERED_REVIEWERS[@]} -ge 2 ]; then
             selected_reviewers=($(shuf -n 2 -e "${FILTERED_REVIEWERS[@]}"))
-            # JSON 형식에 맞게 문자열 생성
-            json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
+            
+            # JSON 형식으로 리뷰어 배열 생성
+            reviewers_json="[\"${selected_reviewers[0]}\",\"${selected_reviewers[1]}\"]"
+            
             echo "Selected reviewers: ${selected_reviewers[*]}"
-            echo "::set-output name=reviewers::$json_array"
+            echo "reviewers_json=$reviewers_json" >> $GITHUB_ENV
           else
             echo "Not enough eligible reviewers available"
             exit 1
@@ -38,13 +40,9 @@ jobs:
 
       - name: Assign reviewers to PR
         run: |
-          # JSON 형식에 맞게 데이터 구성
-          DATA="{\"reviewers\":[$(echo ${{ steps.get-reviewers.outputs.reviewers }})]}"
-
-          # API 호출
           curl -X POST \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Content-Type: application/json" \
-            -d "$DATA"
+            -d "{\"reviewers\": ${{ env.reviewers_json }}}"
