@@ -45,10 +45,15 @@ jobs:
           
           # Shuffle and select 2 reviewers
           selected_reviewers=($(printf "%s\n" "${filtered_members[@]}" | shuf -n 2))
-          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
+          
+          # Create JSON array string with proper escaping
+          json_array=$(jq -n --arg reviewers "$(printf '%s\n' "${selected_reviewers[@]}")" \
+            '$reviewers | split("\n") | {reviewers: .}' )
           
           echo "Selected reviewers: ${selected_reviewers[*]}"
-          echo "json_array=$json_array" >> $GITHUB_OUTPUT
+          echo "json_string<<EOF" >> $GITHUB_OUTPUT
+          echo "$json_array" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Assign reviewers to PR
         if: success()
@@ -57,4 +62,4 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
             -H "Authorization: token ${{ secrets.TEAM_ACCESS_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d "{\"reviewers\": [${{ steps.get-members.outputs.json_array }}]}"
+            -d '${{ steps.get-members.outputs.json_string }}'
