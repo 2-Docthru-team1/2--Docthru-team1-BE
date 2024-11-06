@@ -1,73 +1,62 @@
 name: Assign Random Reviewers
-
 on:
   pull_request:
     types: [opened, reopened, synchronize]
 
 permissions:
   pull-requests: write
+  contents: read
 
 jobs:
   assign_reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Select random reviewers
-        id: get-reviewers
+      - name: Get repository collaborators and assign reviewers
+        id: get-members
         run: |
-          # 고정된 리뷰어 목록 설정
-          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94" "hyobiin9")
+          # Get repository collaborators
+          collaborators=$(curl -s \
+            -H "Authorization: token ${{ secrets.TEAM_ACCESS_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/collaborators?affiliation=direct" | jq -r '.[].login')
 
-          # PR 작성자 제외
+          echo "All collaborators: $collaborators"
+
+          # Convert collaborators to array and remove PR author
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          FILTERED_REVIEWERS=()
-
-          for reviewer in "${REVIEWERS[@]}"; do
-            if [ "$reviewer" != "$PR_AUTHOR" ]; then
-              FILTERED_REVIEWERS+=("$reviewer")
+          filtered_members=()
+          for member in $collaborators; do
+            if [ "$member" != "$PR_AUTHOR" ]; then
+              filtered_members+=("$member")
             fi
           done
 
-          # 랜덤하게 2명 선택
-          if [ ${#FILTERED_REVIEWERS[@]} -ge 2 ]; then
-            selected_reviewers=($(shuf -n 2 -e "${FILTERED_REVIEWERS[@]}"))
-            
-            # JSON 형식으로 리뷰어 배열 생성
-            payload="{\"reviewers\": [\"${selected_reviewers[0]}\", \"${selected_reviewers[1]}\"]}"
-            echo "payload=$payload" >> $GITHUB_ENV
-            
-            echo "Selected reviewers: ${selected_reviewers[*]}"
-          else
-            echo "Not enough eligible reviewers available"
+          echo "Filtered members (excluding PR author): ${filtered_members[*]}"
+
+          # Randomly select 2 reviewers
+          if [ ${#filtered_members[@]} -lt 2 ]; then
+            echo "Not enough collaborators to assign reviewers (excluding PR author)"
+            echo "Number of available reviewers: ${#filtered_members[@]}"
             exit 1
           fi
+
+          # Shuffle and select 2 reviewers
+          selected_reviewers=($(printf "%s\n" "${filtered_members[@]}" | shuf -n 2))
+
+          # Create proper JSON payload
+          json_payload=$(jq -n --arg r1 "${selected_reviewers[0]}" --arg r2 "${selected_reviewers[1]}" \
+            '{reviewers: [$r1, $r2]}')
+
+          echo "Selected reviewers: ${selected_reviewers[*]}"
+          echo "json_string<<EOF" >> $GITHUB_OUTPUT
+          echo "$json_payload" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Assign reviewers to PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: success()
         run: |
-          # API 호출 URL 설정
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/requested_reviewers"
-
-          # JSON 페이로드를 파일로 저장
-          echo "${{ env.payload }}" > payload.json
-
-          # API 호출 디버그 정보 출력
-          echo "Calling API: ${API_URL}"
-          echo "Payload:"
-          cat payload.json
-
-          # API 호출
-          response=$(curl -s -o response.json -w "%{http_code}" -X POST "${API_URL}" \
-            -H "Authorization: token $GH_TOKEN" \
+          curl -X POST \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
+            -H "Authorization: token ${{ secrets.TEAM_ACCESS_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -H "Content-Type: application/json" \
-            --data @payload.json)
-
-          # 응답 코드 확인
-          if [ "$response" -ne 201 ]; then
-            echo "Failed to assign reviewers: $(cat response.json)"
-            exit 1
-          else
-            echo "Reviewers assigned successfully."
-          fi
+            -d '${{ steps.get-members.outputs.json_string }}'
