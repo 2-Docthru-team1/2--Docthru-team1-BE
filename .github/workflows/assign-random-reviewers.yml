@@ -17,24 +17,11 @@ jobs:
           # Get organization and team name from repository
           ORG_NAME="2-Docthru-team1"
           
-          # First, get all teams in the organization
-          teams=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/orgs/${ORG_NAME}/teams")
-          
-          echo "Available teams: $teams"
-          
-          # Get the first team's slug (assuming there's at least one team)
-          team_slug=$(echo "$teams" | jq -r '.[0].slug')
-          
-          echo "Team slug: $team_slug"
-          
-          # Get team members
+          # Get team members directly from repository collaborators as fallback
           members=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.TEAM_ACCESS_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/orgs/${ORG_NAME}/teams/${team_slug}/members" | jq -r '.[].login')
+            "https://api.github.com/repos/${{ github.repository }}/collaborators" | jq -r '.[].login')
           
           echo "All members: $members"
           
@@ -68,6 +55,6 @@ jobs:
         run: |
           curl -X POST \
             "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.TEAM_ACCESS_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             -d "{\"reviewers\": [${{ steps.get-members.outputs.json_array }}]}"
