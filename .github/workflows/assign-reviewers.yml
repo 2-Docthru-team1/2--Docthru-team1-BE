@@ -2,14 +2,11 @@ name: Assign Random Reviewers
 
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, synchronize] # PR이 열리거나, 다시 열리거나, 업데이트될 때 실행
 
 jobs:
   assign_reviewers:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ubuntu-latest # 우분투에서만 실행
 
     steps:
       - name: Checkout code
@@ -22,11 +19,7 @@ jobs:
           REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
 
           # 랜덤으로 2명 선택
-          if [[ "$RUNNER_OS" == "Linux" || "$RUNNER_OS" == "macOS" ]]; then
-            selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
-          else
-            selected_reviewers=($(powershell -Command "Get-Random -InputObject @('alscksdlek', 'csbizz', 'galaxy-78', 'ganghoho', 'taeyeonkim94') -Count 2"))
-          fi
+          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
 
           # 선택된 리뷰어 출력
           echo "Selected reviewers: ${selected_reviewers[@]}"
