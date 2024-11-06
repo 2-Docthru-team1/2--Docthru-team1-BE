@@ -32,6 +32,10 @@ jobs:
         run: |
           echo "Assigning reviewers: ${{ steps.assign_reviewers.outputs.reviewers }}"
           reviewers_json="{\"reviewers\": ${{ steps.assign_reviewers.outputs.reviewers }}}"
+
+          # JSON 문자열 확인
+          echo "Reviewers JSON: $reviewers_json"
+
           curl -v -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
