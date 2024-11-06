@@ -16,7 +16,7 @@ jobs:
           REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
           selected_reviewers=($(shuf -n 1 -e "${REVIEWERS[@]}"))
           json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
-          curl POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
+          curl -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
           -d "{\"reviewers\": [$json_array]}"
