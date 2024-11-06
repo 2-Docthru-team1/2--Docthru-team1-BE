@@ -8,20 +8,25 @@ jobs:
   assign_reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Get repository contributors
+      - name: Select random reviewers
         id: get-reviewers
         run: |
-          # GitHub API로 repository contributor 목록 가져오기
-          contributors=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/contributors" | \
-            jq -r '.[].login' | grep -v "${{ github.event.pull_request.user.login }}")
+          # 고정된 리뷰어 목록 설정
+          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
 
-          # 배열로 변환
-          readarray -t REVIEWERS <<< "$contributors"
+          # PR 작성자 제외
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          FILTERED_REVIEWERS=()
 
-          # 랜덤하게 2명 선택 (PR 작성자 제외)
-          if [ ${#REVIEWERS[@]} -ge 2 ]; then
-            selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+          for reviewer in "${REVIEWERS[@]}"; do
+            if [ "$reviewer" != "$PR_AUTHOR" ]; then
+              FILTERED_REVIEWERS+=("$reviewer")
+            fi
+          done
+
+          # 남은 리뷰어 중 랜덤하게 2명 선택
+          if [ ${#FILTERED_REVIEWERS[@]} -ge 2 ]; then
+            selected_reviewers=($(shuf -n 2 -e "${FILTERED_REVIEWERS[@]}"))
             json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
             echo "Selected reviewers: ${selected_reviewers[*]}"
             echo "reviewers=$json_array" >> $GITHUB_OUTPUT
