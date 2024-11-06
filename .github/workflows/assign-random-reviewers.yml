@@ -50,7 +50,7 @@ jobs:
           API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/requested_reviewers"
 
           # 고정된 리뷰어 목록 설정
-          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
+          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94" "hyobiin9")
 
           # 랜덤하게 2명 선택
           selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
