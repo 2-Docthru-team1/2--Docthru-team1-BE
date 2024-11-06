@@ -34,5 +34,5 @@ jobs:
           curl -v -X POST
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
-          -d "{\"reviewers\":[${{ steps.assign_reviewers.outputs.reviewers }}]}" \
+          -d "{\"reviewers\":${{ steps.assign_reviewers.outputs.reviewers }}}" \
           "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers"
