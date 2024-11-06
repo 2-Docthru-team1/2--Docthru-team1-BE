@@ -8,15 +8,32 @@ jobs:
   assign_reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Get repository contributors
+        id: get-reviewers
+        run: |
+          # GitHub API로 repository contributor 목록 가져오기
+          contributors=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/contributors" | \
+            jq -r '.[].login' | grep -v "${{ github.event.pull_request.user.login }}")
+
+          # 배열로 변환
+          readarray -t REVIEWERS <<< "$contributors"
+
+          # 랜덤하게 2명 선택 (PR 작성자 제외)
+          if [ ${#REVIEWERS[@]} -ge 2 ]; then
+            selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+            json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
+            echo "Selected reviewers: ${selected_reviewers[*]}"
+            echo "reviewers=$json_array" >> $GITHUB_OUTPUT
+          else
+            echo "Not enough eligible reviewers available"
+            exit 1
+          fi
 
       - name: Assign reviewers to PR
+        if: steps.get-reviewers.outputs.reviewers != ''
         run: |
-          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
-          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
-          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
           curl -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
-          -d "{\"reviewers\": [$json_array]}"
+          -d "{\"reviewers\": [${{ steps.get-reviewers.outputs.reviewers }}]}"
