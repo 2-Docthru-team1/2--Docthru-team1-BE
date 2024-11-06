@@ -49,8 +49,18 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number }}"
           API_URL="https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}/requested_reviewers"
 
+          # 고정된 리뷰어 목록 설정
+          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94" "hyobiin9")
+
+          # 랜덤하게 2명 선택
+          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+
+          # JSON 형식으로 리뷰어 배열 생성
+          payload="{\"reviewers\": [\"${selected_reviewers[0]}\", \"${selected_reviewers[1]}\"]}"
+          echo "Generated Payload: $payload"  # 디버그 출력
+
           # JSON 페이로드를 파일로 저장
-          echo "${{ env.payload }}" > payload.json
+          echo "$payload" > payload.json
 
           # API 호출 디버그 정보 출력
           echo "Calling API: ${API_URL}"
