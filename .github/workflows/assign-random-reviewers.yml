@@ -13,8 +13,8 @@ jobs:
 
       - name: Assign reviewers to PR
         run: |
-          REVIEWERS=("hyobiin9" "csbizz")
-          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+          REVIEWERS=("csbizz")
+          selected_reviewers=($(shuf -n 1 -e "${REVIEWERS[@]}"))
           json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
           curl -v -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
