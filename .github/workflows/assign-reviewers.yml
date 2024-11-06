@@ -22,7 +22,11 @@ jobs:
           REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
 
           # 랜덤으로 2명 선택
-          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+          if [[ "$RUNNER_OS" == "Linux" || "$RUNNER_OS" == "macOS" ]]; then
+            selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+          else
+            selected_reviewers=($(powershell -Command "Get-Random -InputObject @('alscksdlek', 'csbizz', 'galaxy-78', 'ganghoho', 'taeyeonkim94') -Count 2"))
+          fi
 
           # 선택된 리뷰어 출력
           echo "Selected reviewers: ${selected_reviewers[@]}"
@@ -32,6 +36,10 @@ jobs:
           echo "::set-output name=reviewers::$reviewers_string"
 
       - name: Assign reviewers to PR
-        uses: pullreminders/assign-reviewers@v1
-        with:
-          reviewers: ${{ steps.assign_reviewers.outputs.reviewers }}
+        run: |
+          echo "Assigning reviewers: ${{ steps.assign_reviewers.outputs.reviewers }}"
+          curl -X POST \
+          -H "Authorization: token $GITHUB_TOKEN" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d "{\"reviewers\":[${{ steps.assign_reviewers.outputs.reviewers }}]}" \
+          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers"
