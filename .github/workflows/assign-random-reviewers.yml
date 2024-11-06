@@ -1,0 +1,22 @@
+name: Assign Random Reviewers
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  assign_reviewers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Assign reviewers to PR
+        run: |
+          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
+          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
+          curl -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d "{\"reviewers\": [$json_array]}"
