@@ -58,8 +58,16 @@ jobs:
           cat payload.json
 
           # API 호출
-          curl -v -X POST "${API_URL}" \
+          response=$(curl -s -o response.json -w "%{http_code}" -X POST "${API_URL}" \
             -H "Authorization: token $GH_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Content-Type: application/json" \
-            --data @payload.json
+            --data @payload.json)
+
+          # 응답 코드 확인
+          if [ "$response" -ne 201 ]; then
+            echo "Failed to assign reviewers: $(cat response.json)"
+            exit 1
+          else
+            echo "Reviewers assigned successfully."
+          fi
