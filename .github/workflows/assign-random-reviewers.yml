@@ -1,5 +1,4 @@
 name: Assign Random Reviewers
-
 on:
   pull_request:
     types: [opened, reopened, synchronize]
@@ -8,15 +7,44 @@ jobs:
   assign_reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Get organization members
+        id: get-members
+        run: |
+          # Get organization name from repository
+          ORG_NAME=$(echo "${{ github.repository }}" | cut -d "/" -f 1)
+          
+          # Get all organization members
+          members=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/orgs/${ORG_NAME}/members" | jq -r '.[].login')
+          
+          # Convert members to array and remove PR author
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          filtered_members=()
+          for member in $members; do
+            if [ "$member" != "$PR_AUTHOR" ]; then
+              filtered_members+=("$member")
+            fi
+          done
+          
+          # Randomly select 2 reviewers
+          if [ ${#filtered_members[@]} -lt 2 ]; then
+            echo "Not enough members to assign reviewers"
+            exit 1
+          fi
+          
+          # Shuffle and select 2 reviewers
+          selected_reviewers=($(printf "%s\n" "${filtered_members[@]}" | shuf -n 2))
+          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
+          
+          echo "Selected reviewers: ${selected_reviewers[*]}"
+          echo "json_array=$json_array" >> $GITHUB_OUTPUT
 
       - name: Assign reviewers to PR
         run: |
-          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
-          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
-          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
-          curl -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          -d "{\"reviewers\": [$json_array]}"
+          curl -X POST \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d "{\"reviewers\": [${{ steps.get-members.outputs.json_array }}]}"
