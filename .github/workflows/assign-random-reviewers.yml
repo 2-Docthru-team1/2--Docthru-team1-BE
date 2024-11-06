@@ -2,37 +2,21 @@ name: Assign Random Reviewers
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize] # PR이 열리거나, 다시 열리거나, 업데이트될 때 실행
+    types: [opened, reopened, synchronize]
 
 jobs:
   assign_reviewers:
-    runs-on: ubuntu-latest # 우분투에서만 실행
-
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Randomly assign reviewers
-        id: assign_reviewers
-        run: |
-          # 리뷰어 목록
-          REVIEWERS=("hyobiin9" "csbizz")
-
-          # 랜덤으로 2명 선택
-          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
-
-          # 선택된 리뷰어 출력
-          echo "Selected reviewers: ${selected_reviewers[@]}"
-
-          # GitHub API를 사용하여 리뷰어 지정
-          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
-          echo "reviewers=[$json_array]" >> $GITHUB_OUTPUT
-
       - name: Assign reviewers to PR
         run: |
-          echo "Assigning reviewers: ${{ steps.assign_reviewers.outputs.reviewers }}"
-          reviewers_json="{\"reviewers\": ${{ steps.assign_reviewers.outputs.reviewers }}}"
+          REVIEWERS=("hyobiin9" "csbizz")
+          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+          json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
           curl -v -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
-          -d "$reviewers_json"
+          -d "{\"reviewers\": [$json_array]}"
