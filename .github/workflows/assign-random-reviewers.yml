@@ -22,17 +22,17 @@ jobs:
           selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
 
           # 선택된 리뷰어 출력
-          echo "Selected reviewers: "${selected_reviewers[@]}""
+          echo "Selected reviewers: ${selected_reviewers[@]}"
 
-          # GitHub API를 사용하여 리뷰어 지정
+          # JSON 배열 형식으로 변환
           json_array=$(printf '"%s",' "${selected_reviewers[@]}" | sed 's/,$//')
-          echo "reviewers=[$json_array]" >> $GITHUB_OUTPUT
+          echo "REVIEWERS=$json_array" >> $GITHUB_ENV  # 환경 변수로 설정
 
       - name: Assign reviewers to PR
         run: |
-          echo "Assigning reviewers: "${{ steps.assign_reviewers.outputs.reviewers }}""
-          curl -v -X POST \
+          echo "Assigning reviewers: ${{ env.reviewers }}"
+          reviewers_json="{\"reviewers\": ${{ steps.assign_reviewers.outputs.reviewers }}}"
+          curl -v -X POST "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers" \
           -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           -H "Accept: application/vnd.github.v3+json" \
-          -d "{\"reviewers\":${{ steps.assign_reviewers.outputs.reviewers }}}" \
-          "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers"
+          -d "$reviewers_json"
