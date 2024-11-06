@@ -1,0 +1,37 @@
+name: Assign Random Reviewers
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  assign_reviewers:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Randomly assign reviewers
+        id: assign_reviewers
+        run: |
+          # 리뷰어 목록
+          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
+
+          # 랜덤으로 2명 선택
+          selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
+
+          # 선택된 리뷰어 출력
+          echo "Selected reviewers: ${selected_reviewers[@]}"
+
+          # GitHub API를 사용하여 리뷰어 지정
+          reviewers_string=$(IFS=,; echo "${selected_reviewers[*]}")
+          echo "::set-output name=reviewers::$reviewers_string"
+
+      - name: Assign reviewers to PR
+        uses: pullreminders/assign-reviewers@v1
+        with:
+          reviewers: ${{ steps.assign_reviewers.outputs.reviewers }}
