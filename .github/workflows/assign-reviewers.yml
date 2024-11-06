@@ -16,7 +16,7 @@ jobs:
         id: assign_reviewers
         run: |
           # 리뷰어 목록
-          REVIEWERS=("alscksdlek" "csbizz" "galaxy-78" "ganghoho" "taeyeonkim94")
+          REVIEWERS=("hyobiin9" "csbizz")
 
           # 랜덤으로 2명 선택
           selected_reviewers=($(shuf -n 2 -e "${REVIEWERS[@]}"))
