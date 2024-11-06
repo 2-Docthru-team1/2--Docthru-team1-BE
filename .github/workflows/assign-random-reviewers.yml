@@ -11,34 +11,31 @@ jobs:
   assign_reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Get team members
+      - name: Get repository collaborators and assign reviewers
         id: get-members
         run: |
-          # Get organization and team name from repository
-          ORG_NAME="2-Docthru-team1"
-          
-          # Get team members directly from repository collaborators as fallback
-          members=$(curl -s \
+          # Get repository collaborators
+          collaborators=$(curl -s \
             -H "Authorization: token ${{ secrets.TEAM_ACCESS_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/collaborators" | jq -r '.[].login')
+            "https://api.github.com/repos/${{ github.repository }}/collaborators?affiliation=direct" | jq -r '.[].login')
           
-          echo "All members: $members"
+          echo "All collaborators: $collaborators"
           
-          # Convert members to array and remove PR author
+          # Convert collaborators to array and remove PR author
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
           filtered_members=()
-          for member in $members; do
+          for member in $collaborators; do
             if [ "$member" != "$PR_AUTHOR" ]; then
               filtered_members+=("$member")
             fi
           done
           
-          echo "Filtered members: ${filtered_members[*]}"
+          echo "Filtered members (excluding PR author): ${filtered_members[*]}"
           
           # Randomly select 2 reviewers
           if [ ${#filtered_members[@]} -lt 2 ]; then
-            echo "Not enough members to assign reviewers (excluding PR author)"
+            echo "Not enough collaborators to assign reviewers (excluding PR author)"
             echo "Number of available reviewers: ${#filtered_members[@]}"
             exit 1
           fi
@@ -46,13 +43,13 @@ jobs:
           # Shuffle and select 2 reviewers
           selected_reviewers=($(printf "%s\n" "${filtered_members[@]}" | shuf -n 2))
           
-          # Create JSON array string with proper escaping
-          json_array=$(jq -n --arg reviewers "$(printf '%s\n' "${selected_reviewers[@]}")" \
-            '$reviewers | split("\n") | {reviewers: .}' )
+          # Create proper JSON payload
+          json_payload=$(jq -n --arg r1 "${selected_reviewers[0]}" --arg r2 "${selected_reviewers[1]}" \
+            '{reviewers: [$r1, $r2]}')
           
           echo "Selected reviewers: ${selected_reviewers[*]}"
           echo "json_string<<EOF" >> $GITHUB_OUTPUT
-          echo "$json_array" >> $GITHUB_OUTPUT
+          echo "$json_payload" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Assign reviewers to PR
